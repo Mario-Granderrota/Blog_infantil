@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Entrada - El Blog de tu hijo o hija</title>
+</head>
+<body>
+    <h1 id="nombre-blog">Cargando...</h1>
+    <div id="entrada"></div>
+    <div id="comentarios"></div>
+    <form id="comentario-form">
+        <textarea id="comentario-texto" required></textarea>
+        <button type="submit">Agregar Comentario</button>
+    </form>
+    <div id="navegacion"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var token = localStorage.getItem('blog_token');
+            var usuario = localStorage.getItem('blog_usuario');
+            if (!token) {
+                alert("No tienes acceso. Solicita acceso nuevamente.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'obtener_recursos_blog.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    document.getElementById('nombre-blog').textContent = response.nombre_blog;
+                }
+            };
+            xhr.send();
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var entradaId = urlParams.get('id');
+            if (!entradaId) {
+                alert("No se proporcionó una entrada válida.");
+                window.location.href = 'blog.html';
+                return;
+            }
+
+            var xhrEntrada = new XMLHttpRequest();
+            xhrEntrada.open('GET', `entrada.php?id=${entradaId}`, true);
+            xhrEntrada.onload = function() {
+                if (xhrEntrada.status === 200) {
+                    var entrada = JSON.parse(xhrEntrada.responseText);
+                    var entradaDiv = document.getElementById('entrada');
+                    entradaDiv.innerHTML = `
+                        <h2>${entrada.titulo}</h2>
+                        <p>${entrada.contenido}</p>
+                        <p><i>${entrada.fecha}</i></p>
+                        ${entrada.archivo ? `<img src="entradas/${entrada.archivo}" width="400" />` : ''}
+                        <hr>`;
+
+                    var navegacionDiv = document.getElementById('navegacion');
+                    if (entrada.anterior) {
+                        navegacionDiv.innerHTML += `<button onclick="verEntrada('${entrada.anterior}')">Entrada anterior</button> `;
+                    }
+                    if (entrada.siguiente) {
+                        navegacionDiv.innerHTML += `<button onclick="verEntrada('${entrada.siguiente}')">Entrada siguiente</button>`;
+                    }
+
+                    // Cargar comentarios
+                    cargarComentarios(entradaId);
+                }
+            };
+            xhrEntrada.send();
+        });
+
+        function verEntrada(id) {
+            window.location.href = `entrada.html?id=${id}`;
+        }
+
+        function cargarComentarios(entradaId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', `comentarios.php?id=${entradaId}`, true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var comentarios = JSON.parse(xhr.responseText);
+                    var comentariosDiv = document.getElementById('comentarios');
+                    comentarios.forEach(function(comentario) {
+                        var comentarioDiv = document.createElement('div');
+                        comentarioDiv.innerHTML = `<p><strong>${comentario.usuario}:</strong> ${comentario.texto}</p><p><i>${comentario.fecha}</i></p><hr>`;
+                        comentariosDiv.appendChild(comentarioDiv);
+                    });
+                }
+            };
+            xhr.send();
+        }
+
+        document.getElementById('comentario-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var comentario = document.getElementById('comentario-texto').value;
+            var usuario = localStorage.getItem('blog_usuario');
+            var entradaId = new URLSearchParams(window.location.search).get('id');
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'comentarios.php', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    alert('Comentario agregado');
+                    cargarComentarios(entradaId);
+                    document.getElementById('comentario-form').reset();
+                }
+            };
+            xhr.send(`accion=agregar&entrada_id=${entradaId}&comentario=${encodeURIComponent(comentario)}&usuario=${encodeURIComponent(usuario)}`);
+        });
+    </script>
+</body>
+</html>
