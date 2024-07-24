@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitud de Acceso - Blog</title>
+</head>
+<body>
+    <h1 id="nombre-blog">Cargando...</h1>
+    <form id="solicitud-form">
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" required>
+        <button type="submit">Solicitar Acceso</button>
+    </form>
+    <button id="borrar-token">Borrar Token</button>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var token = localStorage.getItem('blog_token');
+            if (token) {
+                window.location.href = 'blog.html';
+                return;
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'obtener_recursos_blog.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    document.getElementById('nombre-blog').textContent = response.nombre_blog;
+                }
+            };
+            xhr.send();
+        });
+
+        document.getElementById('solicitud-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var nombre = document.getElementById('nombre').value;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'solicitar_acceso.php', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    alert(xhr.responseText);
+                }
+            };
+            xhr.send('nombre=' + encodeURIComponent(nombre));
+        });
+
+        document.getElementById('borrar-token').addEventListener('click', function() {
+            if (localStorage.getItem('blog_token')) {
+                localStorage.removeItem('blog_token');
+                alert("Token borrado");
+            } else {
+                alert("No hay token para borrar");
+            }
+        });
+    </script>
+</body>
+</html>
