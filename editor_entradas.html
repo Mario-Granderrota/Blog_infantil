@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor de Entradas - El Blog de tu hijo o hija</title>
+    <script src="https://cdn.ckeditor.com/4.16.2/standard/ckeditor.js"></script>
+</head>
+<body>
+    <h1>Editor de Entradas</h1>
+    <select id="entradas-lista" onchange="cargarEntradaSeleccionada()" size="10" style="width: 100%;"></select><br>
+    <form id="editar-entrada-form">
+        <label for="id-editar">ID de la Entrada:</label>
+        <input type="text" id="id-editar" required readonly><br>
+        <label for="titulo-editar">Título:</label>
+        <input type="text" id="titulo-editar" required><br>
+        <label for="contenido-editar">Contenido:</label><br>
+        <textarea id="contenido-editar" rows="10" cols="50" required></textarea><br>
+        <label for="fecha-editar">Fecha:</label>
+        <input type="date" id="fecha-editar" required><br>
+        <input type="file" id="archivo-editar"><br>
+        <label for="pie-archivo-editar">Pie de Foto/Audio/Video:</label>
+        <input type="text" id="pie-archivo-editar"><br>
+        <button type="submit">Editar Entrada</button>
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            cargarEntradas();
+        });
+
+        document.getElementById('editar-entrada-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var id = document.getElementById('id-editar').value;
+            var titulo = document.getElementById('titulo-editar').value;
+            var contenido = CKEDITOR.instances['contenido-editar'].getData();
+            var fecha = document.getElementById('fecha-editar').value;
+            var archivo = document.getElementById('archivo-editar').files[0];
+            var pieArchivo = document.getElementById('pie-archivo-editar').value;
+            var formData = new FormData();
+            formData.append('accion', 'editar');
+            formData.append('id', id);
+            formData.append('titulo', titulo);
+            formData.append('contenido', contenido);
+            formData.append('fecha', fecha);
+            if (archivo) {
+                formData.append('archivo', archivo);
+                formData.append('pieArchivo', pieArchivo);
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'entrada.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    alert('Entrada editada con éxito');
+                    location.reload();
+                } else {
+                    alert('Error al editar la entrada: ' + xhr.responseText);
+                }
+            };
+            xhr.send(formData);
+        });
+
+        function cargarEntradas() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'entrada.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var entradas = JSON.parse(xhr.responseText);
+                    var entradasLista = document.getElementById('entradas-lista');
+                    entradasLista.innerHTML = '';
+                    entradas.forEach(function(entrada) {
+                        var option = document.createElement('option');
+                        option.value = entrada.id;
+                        option.textContent = entrada.titulo;
+                        entradasLista.appendChild(option);
+                    });
+                } else {
+                    alert('Error al cargar las entradas: ' + xhr.responseText);
+                }
+            };
+            xhr.send();
+        }
+
+        function cargarEntradaSeleccionada() {
+            var id = document.getElementById('entradas-lista').value;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'entrada.php?id=' + id, true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var entrada = JSON.parse(xhr.responseText);
+                    document.getElementById('id-editar').value = entrada.id;
+                    document.getElementById('titulo-editar').value = entrada.titulo;
+                    CKEDITOR.instances['contenido-editar'].setData(entrada.contenido);
+                    document.getElementById('fecha-editar').value = entrada.fecha;
+                    if (entrada.pieArchivo) {
+                        document.getElementById('pie-archivo-editar').value = entrada.pieArchivo;
+                    }
+                } else {
+                    alert('Error al cargar la entrada: ' + xhr.responseText);
+                }
+            };
+            xhr.send();
+        }
+
+        CKEDITOR.replace('contenido-editar');
+    </script>
+</body>
+</html>
