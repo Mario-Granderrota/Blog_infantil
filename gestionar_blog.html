@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión del Blog - El Blog de tu hijo o hija</title>
+    <style>
+        .tab {
+            display: none;
+        }
+        .tab-button {
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdn.ckeditor.com/4.16.2/standard/ckeditor.js"></script>
+</head>
+<body>
+    <h1 id="nombre-blog">Cargando...</h1>
+
+    <form id="login-form">
+        <label for="clave">Contraseña:</label>
+        <input type="password" id="clave" required>
+        <button type="submit">Iniciar Sesión</button>
+    </form>
+
+    <div id="gestion" style="display:none;">
+        <div>
+            <button class="tab-button" onclick="showTab('entradas-tab')">Entradas</button>
+            <button class="tab-button" onclick="showTab('comentarios-tab')">Comentarios</button>
+            <button class="tab-button" onclick="showTab('solicitudes-tab')">Solicitudes</button>
+            <button class="tab-button" onclick="showTab('acceso-tab')">Acceso</button>
+        </div>
+
+        <div id="entradas-tab" class="tab">
+            <h2>Crear Nueva Entrada</h2>
+            <form id="crear-entrada-form">
+                <label for="titulo">Título:</label>
+                <input type="text" id="titulo" required><br>
+                <label for="contenido">Contenido:</label><br>
+                <textarea id="contenido" rows="10" cols="50" required></textarea><br>
+                <label for="fecha">Fecha:</label>
+                <input type="date" id="fecha" required><br>
+                <input type="file" id="archivo"><br>
+                <label for="pie-archivo">Pie de Foto/Audio/Video:</label>
+                <input type="text" id="pie-archivo"><br>
+                <button type="submit">Crear Entrada</button>
+            </form>
+        </div>
+
+        <div id="solicitudes-tab" class="tab">
+            <h2>Solicitudes</h2>
+            <button onclick="leerSolicitudes()">Leer Solicitudes</button>
+            <div id="solicitudes-lista"></div>
+        </div>
+
+        <div id="acceso-tab" class="tab">
+            <h2>Solicitar Acceso</h2>
+            <button onclick="botonSolicitarAcceso()">Solicitar Acceso</button>
+        </div>
+    </div>
+
+    <div id="debug" style="display:none;">
+        <h2>Debug Info</h2>
+        <p>Clave Secreta Esperada: <span id="expected-clave"></span></p>
+        <p>Clave Ingresada: <span id="input-clave"></span></p>
+        <p>IP del Editor Esperada: <span id="expected-ip"></span></p>
+        <p>IP del Editor Actual: <span id="actual-ip"></span></p>
+    </div>
+
+    <script>
+        let claveSecreta;
+        let ipDelEditor;
+
+        function showTab(tabId) {
+            var tabs = document.getElementsByClassName('tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].style.display = 'none';
+            }
+            document.getElementById(tabId).style.display = 'block';
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'obtener_recursos_blog.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    document.getElementById('nombre-blog').textContent = response.nombre_blog;
+                    claveSecreta = response.clave_secreta;
+                    ipDelEditor = response.ip_del_editor;
+
+                    // Mostrar datos esperados en el div de depuración
+                    document.getElementById('expected-clave').textContent = claveSecreta;
+                    document.getElementById('expected-ip').textContent = ipDelEditor;
+
+                    // Obtener y mostrar la IP actual del cliente
+                    var xhrIP = new XMLHttpRequest();
+                    xhrIP.open('GET', 'https://api.ipify.org?format=json', true);
+                    xhrIP.onload = function() {
+                        if (xhrIP.status === 200) {
+                            var ipResponse = JSON.parse(xhrIP.responseText);
+                            document.getElementById('actual-ip').textContent = ipResponse.ip;
+                        }
+                    };
+                    xhrIP.send();
+                } else {
+                    alert('Error al obtener los recursos del blog.');
+                }
+            };
+            xhr.onerror = function() {
+                alert('Error en la solicitud a obtener_recursos_blog.php.');
+            };
+            xhr.send();
+
+            document.getElementById('login-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                var clave = document.getElementById('clave').value;
+                var editorIP = document.getElementById('actual-ip').textContent;
+
+                // Mostrar datos ingresados en el div de depuración
+                document.getElementById('input-clave').textContent = clave;
+
+                console.log(`Clave ingresada: ${clave}`);
+                console.log(`IP ingresada: ${editorIP}`);
+                console.log(`Clave esperada: ${claveSecreta}`);
+                console.log(`IP esperada: ${ipDelEditor}`);
+
+                if (clave === claveSecreta && editorIP === ipDelEditor) {
+                    document.getElementById('login-form').style.display = 'none';
+                    document.getElementById('gestion').style.display = 'block';
+                    showTab('entradas-tab'); // Mostrar la primera pestaña por defecto
+                } else {
+                    alert('Contraseña incorrecta o IP no autorizada');
+                }
+                // Mostrar el div de depuración
+                document.getElementById('debug').style.display = 'block';
+            });
+
+            document.getElementById('crear-entrada-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                var titulo = document.getElementById('titulo').value;
+                var contenido = CKEDITOR.instances['contenido'].getData();
+                var fecha = document.getElementById('fecha').value;
+                var archivo = document.getElementById('archivo').files[0];
+                var pieArchivo = document.getElementById('pie-archivo').value;
+                var formData = new FormData();
+                formData.append('accion', 'crear');
+                formData.append('titulo', titulo);
+                formData.append('contenido', contenido);
+                formData.append('fecha', fecha);
+                if (archivo) {
+                    formData.append('archivo', archivo);
+                    formData.append('pieArchivo', pieArchivo);
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'entrada.php', true);
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        alert('Entrada creada con éxito');
+                        location.reload();
+                    } else {
+                        alert('Error al crear la entrada: ' + xhr.responseText);
+                    }
+                };
+                xhr.send(formData);
+            });
+
+            CKEDITOR.replace('contenido');
+            cargarEntradas();
+        });
+
+        function leerSolicitudes() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'solicitudes.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var solicitudes = JSON.parse(xhr.responseText);
+                    var solicitudesDiv = document.getElementById('solicitudes-lista');
+                    solicitudesDiv.innerHTML = '';
+                    solicitudes.forEach(function(solicitud) {
+                        var solicitudDiv = document.createElement('div');
+                        solicitudDiv.innerHTML = `<p><strong>${solicitud.nombre}:</strong> ${solicitud.timestamp}</p><button onclick="concederAcceso('${solicitud.nombre}')">Conceder Acceso</button><hr>`;
+                        solicitudesDiv.appendChild(solicitudDiv);
+                    });
+                } else {
+                    alert('Error al leer las solicitudes: ' + xhr.responseText);
+                }
+            };
+            xhr.send();
+        }
+
+        function botonSolicitarAcceso() {
+            var usuario = prompt("Introduce el nombre del usuario:");
+            if (usuario !== null) {
+                enviarSolicitudAcceso(usuario);
+            }
+        }
+
+        function enviarSolicitudAcceso(usuario) {
+            var xhr = new XMLHttpRequest();
+            var formData = new FormData();
+            formData.append('nombre', usuario);
+            xhr.open('POST', 'solicitar_acceso.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    alert('Solicitud de acceso enviada con éxito');
+                } else {
+                    alert('Error al enviar la solicitud de acceso: ' + xhr.responseText);
+                }
+            };
+            xhr.send(formData);
+        }
+
+        function concederAcceso(nombre) {
+            var xhr = new XMLHttpRequest();
+            var formData = new FormData();
+            formData.append('nombre', nombre);
+            xhr.open('POST', 'conceder_acceso.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var link = 'blog.html?token=' + xhr.responseText;
+                    navigator.clipboard.writeText(link).then(function() {
+                        alert('Acceso concedido. Enlace copiado al portapapeles.');
+                    }, function(err) {
+                        alert('Error al copiar el enlace al portapapeles: ' + err);
+                    });
+                } else {
+                    alert('Error al conceder acceso: ' + xhr.responseText);
+                }
+            };
+            xhr.send(formData);
+        }
+
+        function cargarEntradas() {
+            // Aquí se podría agregar la funcionalidad para cargar entradas. 
+        }
+    </script>
+</body>
+</html>
