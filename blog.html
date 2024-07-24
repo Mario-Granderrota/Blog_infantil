@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Blog - El Blog de Tu hijo o hija</title>
+</head>
+<body>
+    <h1 id="nombre-blog">Cargando...</h1>
+    <div id="entradas"></div>
+    <button id="borrar-token">Borrar Token</button>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var token = localStorage.getItem('blog_token');
+            if (!token) {
+                alert("No tienes acceso. Solicita acceso nuevamente.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Mostrar el nombre del blog
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'obtener_recursos_blog.php', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    document.getElementById('nombre-blog').textContent = response.nombre_blog;
+                }
+            };
+            xhr.send();
+
+            // Obtener y mostrar las entradas del blog
+            var xhrEntradas = new XMLHttpRequest();
+            xhrEntradas.open('GET', 'entrada.php', true);
+            xhrEntradas.onload = function() {
+                if (xhrEntradas.status === 200) {
+                    var entradas = JSON.parse(xhrEntradas.responseText);
+                    var entradasDiv = document.getElementById('entradas');
+                    entradas.forEach(function(entrada) {
+                        var entradaDiv = document.createElement('div');
+                        var contenido = entrada.contenido.length > 100 ? entrada.contenido.substring(0, 100) + "..." : entrada.contenido;
+                        entradaDiv.innerHTML = `
+                            <h3>${entrada.titulo}</h3>
+                            <p>${contenido}</p>
+                            <p><i>${entrada.fecha}</i></p>
+                            ${entrada.archivo ? `<img src="entradas/${entrada.archivo}" width="200" />` : ''}
+                            <button onclick="verEntrada('${entrada.id}')">Leer más</button>
+                            <hr>`;
+                        entradasDiv.appendChild(entradaDiv);
+                    });
+                }
+            };
+            xhrEntradas.send();
+
+            // Función para ver una entrada específica
+            window.verEntrada = function(id) {
+                window.location.href = `entrada.html?id=${id}`;
+            };
+
+            // Botón para borrar el token
+            document.getElementById('borrar-token').addEventListener('click', function() {
+                if (localStorage.getItem('blog_token')) {
+                    localStorage.removeItem('blog_token');
+                    alert("Token borrado");
+                    window.location.href = 'index.html';
+                } else {
+                    alert("No hay token para borrar");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
